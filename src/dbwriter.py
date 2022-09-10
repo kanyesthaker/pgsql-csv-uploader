@@ -53,6 +53,20 @@ class DBWriter:
             )
         cur.execute(query)
         return cur.query.decode("utf-8")
+    
+    def upload(
+        self,
+        fp,
+        table,
+        index_col: Optional[str] = None,
+        datetime_cols: Optional[List[str]] = None,
+    ):
+        cur = self.conn.cursor()
+        self.create_table(fp, table, index_col, datetime_cols)
+        f = open(fp, 'r')
+        cur.copy_from(f, table, sep=',')
+        f.close()
+        self.conn.commit()
 
     def get_pgsql_schema(
         self,
