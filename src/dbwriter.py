@@ -1,5 +1,6 @@
 from inspect import signature
 from typing import Dict, List, Optional, Tuple
+from io import StringIO
 import numpy as np
 import psycopg2 as ps
 from psycopg2.extensions import connection, AsIs, quote_ident
@@ -15,6 +16,7 @@ class DBWriter:
     def __init__(self, conn: connection):
         self.conn = conn
         self.data = None
+        self.buffer = StringIO()
     
     @classmethod
     def from_new_connection(cls,
@@ -41,16 +43,17 @@ class DBWriter:
         datetime_cols: Optional[List[str]] = None
     ) -> None:
         cur = self.conn.cursor()
-        columns = self.get_pgsql_schema(fp, index_col, datetime_cols)
+        columns = self.create_table_schema(fp, index_col, datetime_cols)
         sanitized_cols = [sql.Identifier(c[0]).as_string(cur) + f" {c[1]}" for c in columns]
         sanitized_cols[0] += " PRIMARY KEY"
-        print(sanitized_cols)
+        delete_query = sql.SQL('DROP TABLE IF EXISTS {0};').format(sql.Identifier(table))
         query = sql.SQL(
             "CREATE TABLE {0} ({1});"
             ).format(
                 sql.Identifier(table),
                 sql.SQL(",".join(sanitized_cols))
             )
+        cur.execute(delete_query)
         cur.execute(query)
         return cur.query.decode("utf-8")
     
@@ -63,23 +66,26 @@ class DBWriter:
     ):
         cur = self.conn.cursor()
         self.create_table(fp, table, index_col, datetime_cols)
-        f = open(fp, 'r')
-        cur.copy_from(f, table, sep=',')
-        f.close()
+        self.buffer.seek(0)
+        cur.copy_from(self.buffer, table, sep=',')
         self.conn.commit()
 
-    def get_pgsql_schema(
+    def create_table_schema(
         self,
         fp: str,
         index_col: Optional[str] = None,
         datetime_cols: Optional[List[str]] = None
     ):
+
         df = pd.read_csv(fp, parse_dates=datetime_cols)
+        if "Unnamed: 0" in df.columns: df.drop("Unnamed: 0", inplace=True, axis=1)
         if not index_col:
-            index_col = "Unnamed: 0"
+            df = df.reset_index()
+            index_col = df.columns[0]
         else:
-            df.pop("Unnamed: 0")
-        df.insert(0, index_col, df.pop(index_col))
+            df.insert(0, index_col, df.pop(index_col), allow_duplicates=True)
+        df = df.infer_objects()
+        df.to_csv(self.buffer, header=False, index=False)
         cols_map = self.map_sql_dtypes(df)
         return cols_map
 
