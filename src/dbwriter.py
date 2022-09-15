@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 from io import StringIO
 import numpy as np
 import psycopg2 as ps
-from psycopg2.extensions import connection, AsIs, quote_ident
+from psycopg2.extensions import connection
 import psycopg2.sql as sql
 import pandas as pd
 from sqlalchemy.dialects import postgresql
