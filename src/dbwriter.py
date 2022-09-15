@@ -1,6 +1,8 @@
+from datetime import datetime
 from inspect import signature
 from typing import Dict, List, Optional, Tuple
 from io import StringIO
+from dateutil.parser import parse
 import numpy as np
 import psycopg2 as ps
 from psycopg2.extensions import connection
@@ -76,7 +78,6 @@ class DBWriter:
         index_col: Optional[str] = None,
         datetime_cols: Optional[List[str]] = None
     ):
-
         df = pd.read_csv(fp, parse_dates=datetime_cols)
         if "Unnamed: 0" in df.columns: df.drop("Unnamed: 0", inplace=True, axis=1)
         if not index_col:
@@ -84,6 +85,7 @@ class DBWriter:
             index_col = df.columns[0]
         else:
             df.insert(0, index_col, df.pop(index_col), allow_duplicates=True)
+        
         df = df.infer_objects()
         df.to_csv(self.buffer, header=False, index=False)
         cols_map = self.map_sql_dtypes(df)
