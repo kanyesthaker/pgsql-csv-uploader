@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "postgres_csv_uploader"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   { name="Kanyes Thaker", email="kanyes.thaker@gmail.com" },
 ]
@@ -18,8 +18,8 @@ classifiers = [
     "Operating System :: MacOS",
 ]
 dependencies = [
-    "numpy>=1.23.0",
-    "pandas>=1.4.0",
-    "psycopg2>=2.7.0",
-    "SQLAlchemy>=1.4.0"
+    "numpy>=1.23.2",
+    "pandas>=1.4.4",
+    "psycopg2>=2.7.7",
+    "SQLAlchemy>=1.4.41"
 ]
