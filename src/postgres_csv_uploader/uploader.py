@@ -1,8 +1,6 @@
-from datetime import datetime
 from inspect import signature
 from typing import Dict, List, Optional, Tuple
 from io import StringIO
-from dateutil.parser import parse
 import numpy as np
 import psycopg2 as ps
 from psycopg2.extensions import connection
@@ -13,7 +11,7 @@ from collections import defaultdict
 import warnings
 import re
 
-class DBWriter:
+class PostgresCSVUploader:
     
     def __init__(self, conn: connection):
         self.conn = conn

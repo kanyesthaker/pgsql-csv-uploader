@@ -1,8 +1,8 @@
-from src.dbwriter import DBWriter
+from src.postgres_csv_uploader.uploader import PostgresCSVUploader
 import psycopg2 as ps
 import psycopg2.sql as sql
 import pandas as pd
-from datetime import datetime, date
+from datetime import date
 import pytest
 
 @pytest.fixture
@@ -68,36 +68,36 @@ table_small = "mock_table_small"
 table_large = "mock_table_large"
 table_very_large = "mock_table_very_large"
 
-def test_dbwriter_init_conn_no_db(conn_no_db):
-    dbwriter = DBWriter(conn_no_db)
-    assert dbwriter.conn.info.host == "localhost"
-    assert dbwriter.conn.info.user == dbwriter.conn.info.dbname == "kanyesthaker"
-    assert dbwriter.conn.info.port == 5432
+def test_uploader_init_conn_no_db(conn_no_db):
+    uploader = PostgresCSVUploader(conn_no_db)
+    assert uploader.conn.info.host == "localhost"
+    assert uploader.conn.info.user == uploader.conn.info.dbname == "kanyesthaker"
+    assert uploader.conn.info.port == 5432
 
-def test_dbwriter_init_conn(conn, mock_db):
-    dbwriter = DBWriter(conn)
-    assert dbwriter.conn.info.host == "localhost"
-    assert dbwriter.conn.info.user == "kanyesthaker"
-    assert dbwriter.conn.info.port == 5432
-    assert dbwriter.conn.info.dbname == mock_db
+def test_uploader_init_conn(conn, mock_db):
+    uploader = PostgresCSVUploader(conn)
+    assert uploader.conn.info.host == "localhost"
+    assert uploader.conn.info.user == "kanyesthaker"
+    assert uploader.conn.info.port == 5432
+    assert uploader.conn.info.dbname == mock_db
 
-def test_dbwriter_init_new(mock_db):
-    dbwriter = DBWriter.from_new_connection(
+def test_uploader_init_new(mock_db):
+    uploader = PostgresCSVUploader.from_new_connection(
         host="localhost",
         user="kanyesthaker",
         password="admin",
         port=5432,
         database=mock_db
     )
-    assert dbwriter.conn.info.host == "localhost"
-    assert dbwriter.conn.info.user == "kanyesthaker"
-    assert dbwriter.conn.info.port == 5432
-    assert dbwriter.conn.info.dbname == mock_db
+    assert uploader.conn.info.host == "localhost"
+    assert uploader.conn.info.user == "kanyesthaker"
+    assert uploader.conn.info.port == 5432
+    assert uploader.conn.info.dbname == mock_db
 
 def test_typemap_small(conn, mock_dataset_small):
-    dbwriter = DBWriter(conn)
+    uploader = PostgresCSVUploader(conn)
     df = pd.read_csv(mock_dataset_small, parse_dates=['datetime'])
-    assert dbwriter.map_sql_dtypes(df) == [
+    assert uploader.map_sql_dtypes(df) == [
         ('Unnamed: 0', 'INTEGER'),
         ('id', 'VARCHAR'),
         ('text', 'VARCHAR'),
@@ -108,9 +108,9 @@ def test_typemap_small(conn, mock_dataset_small):
     ]
 
 def test_typemap_large(conn, mock_dataset_large):
-    dbwriter = DBWriter(conn)
+    uploader = PostgresCSVUploader(conn)
     df = pd.read_csv(mock_dataset_large, parse_dates=['sale_date'])
-    typemap = dbwriter.map_sql_dtypes(df)
+    typemap = uploader.map_sql_dtypes(df)
     assert typemap == [
         ('Unnamed: 0', 'INTEGER'),
         ('street', 'VARCHAR'),
@@ -128,8 +128,8 @@ def test_typemap_large(conn, mock_dataset_large):
     ]
 
 def test_create_table_schema_no_index(conn, mock_dataset_small):
-    dbwriter = DBWriter(conn)
-    no_index_schema = dbwriter.create_table_schema(mock_dataset_small, datetime_cols=['datetime'])
+    uploader = PostgresCSVUploader(conn)
+    no_index_schema = uploader.create_table_schema(mock_dataset_small, datetime_cols=['datetime'])
     assert no_index_schema == [
         ("index", "INTEGER"),
         ("id","VARCHAR"),
@@ -141,8 +141,8 @@ def test_create_table_schema_no_index(conn, mock_dataset_small):
     ]
 
 def test_create_table_schema(conn, mock_dataset_small):
-    dbwriter = DBWriter(conn)
-    index_schema = dbwriter.create_table_schema(mock_dataset_small, index_col='id', datetime_cols=['datetime'])
+    uploader = PostgresCSVUploader(conn)
+    index_schema = uploader.create_table_schema(mock_dataset_small, index_col='id', datetime_cols=['datetime'])
     assert index_schema == [
         ("id", "VARCHAR"),
         ("text", "VARCHAR"),
@@ -153,7 +153,7 @@ def test_create_table_schema(conn, mock_dataset_small):
     ]
 
 def test_create_table(conn, mock_dataset_small):
-    dbwriter = DBWriter(conn)
+    uploader = PostgresCSVUploader(conn)
     fp = mock_dataset_small
     target_query = (
         f'CREATE TABLE "{table_small}" ('
@@ -165,7 +165,7 @@ def test_create_table(conn, mock_dataset_small):
             '"datetime" DATE'
         ');'
     )
-    assert dbwriter.create_table(
+    assert uploader.create_table(
         fp,
         table_small,
         index_col='id',
@@ -173,8 +173,8 @@ def test_create_table(conn, mock_dataset_small):
     ) == target_query
 
 def test_upload_small(conn, mock_dataset_small):
-    dbwriter = DBWriter(conn)
-    dbwriter.upload(mock_dataset_small, table_small, index_col="id", datetime_cols=['datetime'])
+    uploader = PostgresCSVUploader(conn)
+    uploader.upload(mock_dataset_small, table_small, index_col="id", datetime_cols=['datetime'])
     cur = conn.cursor()
     cur.execute(sql.SQL("SELECT * FROM {0};").format(sql.Identifier(table_small)))
     data = cur.fetchall()
@@ -185,20 +185,34 @@ def test_upload_small(conn, mock_dataset_small):
     ]
 
 def test_upload_large(conn, mock_dataset_large):
-    dbwriter = DBWriter(conn)
-    dbwriter.upload(mock_dataset_large, table_large, datetime_cols=["sale_date"])
+    uploader = PostgresCSVUploader(conn)
+    uploader.upload(mock_dataset_large, table_large, datetime_cols=["sale_date"])
     cur = conn.cursor()
     cur.execute(sql.SQL("SELECT * FROM {0};").format(sql.Identifier(table_large)))
     data = cur.fetchall()
     df = pd.read_csv(mock_dataset_large)
 
     assert len(data) == len(df)
-    assert data[0] == (0, '3526 HIGH ST', 'SACRAMENTO', 95838, 'CA', 2, 1, 836, 'Residential', date(2008, 5, 21), 59222, 38.631913, -121.434879)
+    assert data[0] == (
+        0,
+        '3526 HIGH ST',
+        'SACRAMENTO',
+        95838,
+        'CA',
+        2,
+        1,
+        836,
+        'Residential',
+        date(2008, 5, 21),
+        59222,
+        38.631913,
+        -121.434879
+    )
 
 def test_upload_very_large(conn, mock_dataset_very_large):
     # Upload a file where a single row is over 8KB, forcing Postgres to TOAST
-    dbwriter = DBWriter(conn)
-    dbwriter.upload(mock_dataset_very_large, table_very_large, index_col="id")
+    uploader = PostgresCSVUploader(conn)
+    uploader.upload(mock_dataset_very_large, table_very_large, index_col="id")
     cur = conn.cursor()
     cur.execute(sql.SQL("SELECT * FROM {0};").format(sql.Identifier(table_very_large)))
     data = cur.fetchall()

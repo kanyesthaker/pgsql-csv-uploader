@@ -1,2 +1,4 @@
-pandas
-psycopg2-binary
+numpy==1.23.2
+pandas==1.4.4
+psycopg2==2.9.3
+SQLAlchemy==1.4.41
