@@ -18,8 +18,8 @@ classifiers = [
     "Operating System :: MacOS",
 ]
 dependencies = [
-    "numpy",
-    "pandas",
-    "psycopg2",
-    "SQLAlchemy"
+    "numpy>=1.23.0",
+    "pandas>=1.4.0",
+    "psycopg2>=2.7.0",
+    "SQLAlchemy>=1.4.0"
 ]

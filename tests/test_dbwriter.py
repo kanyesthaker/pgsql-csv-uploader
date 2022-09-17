@@ -36,9 +36,9 @@ def conn(mock_db):
 def mock_dataset_large(tmp_path_factory):
     src = "http://web.cs.wpi.edu/~cs1004/a16/Resources/SacramentoRealEstateTransactions.csv"
     df = pd.read_csv(src)
-    fp = tmp_path_factory.getbasetemp() / 'test_data_large.csv'
-    df.to_csv(fp)
-    return fp
+    filepath = tmp_path_factory.getbasetemp() / 'test_data_large.csv'
+    df.to_csv(filepath)
+    return filepath
 
 @pytest.fixture(scope='session')
 def mock_dataset_small(tmp_path_factory):
@@ -50,9 +50,9 @@ def mock_dataset_small(tmp_path_factory):
         "bool": [True, False, True],
         "datetime": ["Jan 1 1970", "Jan 24 1984", "Sep 14 2022"]   
     })
-    fp = tmp_path_factory.getbasetemp() / 'test_data_small.csv'
-    df.to_csv(fp)
-    return fp
+    filepath = tmp_path_factory.getbasetemp() / 'test_data_small.csv'
+    df.to_csv(filepath)
+    return filepath
 
 @pytest.fixture(scope='session')
 def mock_dataset_very_large(tmp_path_factory):
@@ -60,9 +60,9 @@ def mock_dataset_very_large(tmp_path_factory):
         "id": ["id1", "id2", "id3"],
         "bigtext": ["helloworld" * 1000, "helloworld" * 1000, "helloworld" * 1000]
     })
-    fp = tmp_path_factory.getbasetemp() / 'test_data_very_large.csv'
-    df.to_csv(fp)
-    return fp
+    filepath = tmp_path_factory.getbasetemp() / 'test_data_very_large.csv'
+    df.to_csv(filepath)
+    return filepath
 
 table_small = "mock_table_small"
 table_large = "mock_table_large"
@@ -154,7 +154,7 @@ def test_create_table_schema(conn, mock_dataset_small):
 
 def test_create_table(conn, mock_dataset_small):
     uploader = PostgresCSVUploader(conn)
-    fp = mock_dataset_small
+    filepath = mock_dataset_small
     target_query = (
         f'CREATE TABLE "{table_small}" ('
             '"id" VARCHAR PRIMARY KEY,'
@@ -166,7 +166,7 @@ def test_create_table(conn, mock_dataset_small):
         ');'
     )
     assert uploader.create_table(
-        fp,
+        filepath,
         table_small,
         index_col='id',
         datetime_cols=['datetime']

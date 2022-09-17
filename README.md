@@ -1,11 +1,12 @@
 # Postgres CSV Uploader
 
-A friend of mine was trying to find a fast way to upload a CSV to a Postgres database, and ran into some issues.
-Firstly, Postgres requires the table schema to be determined in advance, and doesn't have a way to natively infer column data types.
+This package provides a simple utility to upload CSV files to a Postgres DB without explicitly specifying the table schema in advance by inferring the column types from the corresponding Pandas dtypes.
 
-Libraries like SQLAlchemy provide systems to do this -- however, the SQLAlchemy ORM is substantially slower than interacting with the database driver directly (which is done by libraries like psycopg2). As a result, there was a (very small, very specific) need to create a smoother interface for uploading CSVs to Postgres quickly and with some kind of type inference.
+Libraries such as SQLAlchemy provide systems to do this -- however, the SQLAlchemy ORM is substantially slower than interacting with the database driver directly (which is done by libraries like psycopg2). As a result, there was a (very small, very specific) need to create a smoother interface for uploading CSVs to Postgres quickly and with some kind of type inference.
 
-Note that this is a *very* limited library, which I wrote in about a total of 2 hours. It requires being able to load the dataset into memory, and currently doesn't do any kind of partitioning (uses a Pandas DataFrame as an intermediary to perform the type inference) or support parallelism. It also requires superadmin privileges within the DB. However, it does work decently well on small datasets.
+Note that this is a *very* limited library. It requires being able to load the dataset into memory, and currently doesn't do any kind of partitioning or support parallelism. It also requires superadmin privileges within the DB. However, it does work decently well on small datasets.
+
+As a word of caution, uploading is a *destructive* operation, meaning that it will *overwrite* the the existing table specified by the `table_name` parameter if it exists.
 
 ## Example Usage:
     from postgres_csv_uploader.uploader import PostgresCSVUploader

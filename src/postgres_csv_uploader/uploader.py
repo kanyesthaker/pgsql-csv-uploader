@@ -37,13 +37,13 @@ class PostgresCSVUploader:
     
     def create_table(
         self, 
-        fp: str, 
+        filepath: str, 
         table: str,
         index_col: Optional[str] = None,
         datetime_cols: Optional[List[str]] = None
     ) -> None:
         cur = self.conn.cursor()
-        columns = self.create_table_schema(fp, index_col, datetime_cols)
+        columns = self.create_table_schema(filepath, index_col, datetime_cols)
         sanitized_cols = [sql.Identifier(c[0]).as_string(cur) + f" {c[1]}" for c in columns]
         sanitized_cols[0] += " PRIMARY KEY"
         delete_query = sql.SQL('DROP TABLE IF EXISTS {0};').format(sql.Identifier(table))
@@ -59,24 +59,42 @@ class PostgresCSVUploader:
     
     def upload(
         self,
-        fp,
-        table,
+        filepath: str,
+        table: str,
         index_col: Optional[str] = None,
         datetime_cols: Optional[List[str]] = None,
     ):
+        """Uploads a CSV file as its own table in a Postgres DB
+
+        Args:
+            filepath (str): Path to CSV file
+            table (str): Table name
+            index_col (Optional[str], optional): Name of index column. Defaults to None, in which case a numerical index is used.
+            datetime_cols (Optional[List[str]], optional): List of column names for "datetime" columns. Defaults to None.
+        """
         cur = self.conn.cursor()
-        self.create_table(fp, table, index_col, datetime_cols)
+        self.create_table(filepath, table, index_col, datetime_cols)
         self.buffer.seek(0)
         cur.copy_from(self.buffer, table, sep=',')
         self.conn.commit()
 
     def create_table_schema(
         self,
-        fp: str,
+        filepath: str,
         index_col: Optional[str] = None,
         datetime_cols: Optional[List[str]] = None
-    ):
-        df = pd.read_csv(fp, parse_dates=datetime_cols)
+    ) -> Dict[str, str]:
+        """Generates a Postgres schema based on the Pandas dtypes of an input CSV file
+
+        Args:
+            filepath (str): Path to CSV file
+            index_col (Optional[str], optional): Name of index column. Defaults to None, in which case a numerical index is used.
+            datetime_cols (Optional[List[str]], optional): List of column names for "datetime" columns. Defaults to None.
+
+        Returns:
+            Dict[str, str]: Mapping from column name to postgres type name
+        """
+        df = pd.read_csv(filepath, parse_dates=datetime_cols)
         if "Unnamed: 0" in df.columns: df.drop("Unnamed: 0", inplace=True, axis=1)
         if not index_col:
             df = df.reset_index()
