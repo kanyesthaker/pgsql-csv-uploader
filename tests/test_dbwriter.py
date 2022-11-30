@@ -8,11 +8,16 @@ import pytest
 from src.postgres_csv_uploader.uploader import PostgresCSVUploader
 
 
+@pytest.fixture(scope="session")
+def username(pytestconfig):
+    return pytestconfig.getoption("user")
+
+
 @pytest.fixture
-def conn_no_db():
+def conn_no_db(username):
     yield ps.connect(
         host="localhost",
-        user="kanyesthaker",
+        user=username,
         password="admin",
         port=5432,
     )
@@ -28,10 +33,10 @@ def mock_db(conn_no_db):
 
 
 @pytest.fixture
-def conn(mock_db):
+def conn(mock_db, username):
     yield ps.connect(
         host="localhost",
-        user="kanyesthaker",
+        user=username,
         password="admin",
         port=5432,
         database=mock_db,
@@ -82,31 +87,31 @@ table_large = "mock_table_large"
 table_very_large = "mock_table_very_large"
 
 
-def test_uploader_init_conn_no_db(conn_no_db):
+def test_uploader_init_conn_no_db(conn_no_db, username):
     uploader = PostgresCSVUploader(conn_no_db)
     assert uploader.conn.info.host == "localhost"
-    assert uploader.conn.info.user == uploader.conn.info.dbname == "kanyesthaker"
+    assert uploader.conn.info.user == uploader.conn.info.dbname == username
     assert uploader.conn.info.port == 5432
 
 
-def test_uploader_init_conn(conn, mock_db):
+def test_uploader_init_conn(conn, mock_db, username):
     uploader = PostgresCSVUploader(conn)
     assert uploader.conn.info.host == "localhost"
-    assert uploader.conn.info.user == "kanyesthaker"
+    assert uploader.conn.info.user == username
     assert uploader.conn.info.port == 5432
     assert uploader.conn.info.dbname == mock_db
 
 
-def test_uploader_init_new(mock_db):
+def test_uploader_init_new(username, mock_db):
     uploader = PostgresCSVUploader.from_new_connection(
         host="localhost",
-        user="kanyesthaker",
+        user=username,
         password="admin",
         port=5432,
         database=mock_db,
     )
     assert uploader.conn.info.host == "localhost"
-    assert uploader.conn.info.user == "kanyesthaker"
+    assert uploader.conn.info.user == username
     assert uploader.conn.info.port == 5432
     assert uploader.conn.info.dbname == mock_db
 
@@ -115,11 +120,11 @@ def test_typemap_small(conn, mock_dataset_small):
     uploader = PostgresCSVUploader(conn)
     df = pd.read_csv(mock_dataset_small, parse_dates=["datetime"])
     assert uploader.map_sql_dtypes(df) == [
-        ("Unnamed: 0", "INTEGER"),
+        ("Unnamed: 0", "BIGINT"),
         ("id", "VARCHAR"),
         ("text", "VARCHAR"),
-        ("int", "INTEGER"),
-        ("float", "FLOAT"),
+        ("int", "BIGINT"),
+        ("float", "DOUBLE PRECISION"),
         ("bool", "BOOLEAN"),
         ("datetime", "DATE"),
     ]
@@ -130,19 +135,19 @@ def test_typemap_large(conn, mock_dataset_large):
     df = pd.read_csv(mock_dataset_large, parse_dates=["sale_date"])
     typemap = uploader.map_sql_dtypes(df)
     assert typemap == [
-        ("Unnamed: 0", "INTEGER"),
+        ("Unnamed: 0", "BIGINT"),
         ("street", "VARCHAR"),
         ("city", "VARCHAR"),
-        ("zip", "INTEGER"),
+        ("zip", "BIGINT"),
         ("state", "VARCHAR"),
-        ("beds", "INTEGER"),
-        ("baths", "INTEGER"),
-        ("sq__ft", "INTEGER"),
+        ("beds", "BIGINT"),
+        ("baths", "BIGINT"),
+        ("sq__ft", "BIGINT"),
         ("type", "VARCHAR"),
         ("sale_date", "DATE"),
-        ("price", "INTEGER"),
-        ("latitude", "FLOAT"),
-        ("longitude", "FLOAT"),
+        ("price", "BIGINT"),
+        ("latitude", "DOUBLE PRECISION"),
+        ("longitude", "DOUBLE PRECISION"),
     ]
 
 
@@ -152,11 +157,11 @@ def test_create_table_schema_no_index(conn, mock_dataset_small):
         mock_dataset_small, datetime_cols=["datetime"]
     )
     assert no_index_schema == [
-        ("index", "INTEGER"),
+        ("index", "BIGINT"),
         ("id", "VARCHAR"),
         ("text", "VARCHAR"),
-        ("int", "INTEGER"),
-        ("float", "FLOAT"),
+        ("int", "BIGINT"),
+        ("float", "DOUBLE PRECISION"),
         ("bool", "BOOLEAN"),
         ("datetime", "DATE"),
     ]
@@ -170,8 +175,8 @@ def test_create_table_schema(conn, mock_dataset_small):
     assert index_schema == [
         ("id", "VARCHAR"),
         ("text", "VARCHAR"),
-        ("int", "INTEGER"),
-        ("float", "FLOAT"),
+        ("int", "BIGINT"),
+        ("float", "DOUBLE PRECISION"),
         ("bool", "BOOLEAN"),
         ("datetime", "DATE"),
     ]
@@ -184,8 +189,8 @@ def test_create_table(conn, mock_dataset_small):
         f'CREATE TABLE "{table_small}" ('
         '"id" VARCHAR PRIMARY KEY,'
         '"text" VARCHAR,'
-        '"int" INTEGER,'
-        '"float" FLOAT,'
+        '"int" BIGINT,'
+        '"float" DOUBLE PRECISION,'
         '"bool" BOOLEAN,'
         '"datetime" DATE'
         ");"
