@@ -4,7 +4,6 @@ import pandas as pd
 import psycopg2 as ps
 import psycopg2.sql as sql
 import pytest
-
 from src.postgres_csv_uploader.uploader import PostgresCSVUploader
 
 
