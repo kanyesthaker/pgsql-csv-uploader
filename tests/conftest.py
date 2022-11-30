@@ -3,5 +3,5 @@ def pytest_addoption(parser):
         "--user",
         action="store",
         default="kanyesthaker",
-        help="Enter a postgres username to run the tests.",
+        help="Enter a PostgreSQL username to run the tests.",
     )
